@@ -360,19 +360,19 @@ session replay) and a profiler window in the editor.
 
 | File | Role | Thread |
 |---|---|---|
-| [audio.h](audio.h) / [audio.cpp](audio.cpp) | public API, glue: objects, parameters, bank loading, stats | game (+ loader thread) |
-| [audio_bank.h](audio_bank.h) / [.cpp](audio_bank.cpp) | init.xml / meta.xml / sounds.xml parsing, data of a bank | game |
-| [audio_policy.h](audio_policy.h) / [.cpp](audio_policy.cpp) | event instances, voice management, commands to the mixer | game |
-| [audio_mixer.h](audio_mixer.h) / [.cpp](audio_mixer.cpp) | the graph: voices → instances → buses → master; miniaudio device | audio |
-| [audio_mix.h](audio_mix.h) | SIMD kernels: voice mix, resampling, panning, biquads, HRTF FIR, output, float → int16 | audio (IO) |
-| [audio_adpcm.h](audio_adpcm.h) | IMA ADPCM: WAV parsing, block decode / encode | audio, tools |
-| [audio_reverb.h](audio_reverb.h) | FDN reverb (8 lines), SIMD | audio |
-| [audio_stream.h](audio_stream.h) / [.cpp](audio_stream.cpp) | streaming: slots, rings, Vorbis decoders, IO thread | IO |
-| [audio_vorbis.h](audio_vorbis.h) / [.cpp](audio_vorbis.cpp) | Ogg Vorbis decoder in fixed memory: open, seek, mono int16 | IO, tools |
-| [audio_plugins.h](audio_plugins.h) / [.cpp](audio_plugins.cpp) | spatial plugin interface, built-in panning | audio |
-| [audio_hrtf.h](audio_hrtf.h) / [.cpp](audio_hrtf.cpp) | built-in binaural plugin (HRTF) | audio |
-| [audio_geometry.h](audio_geometry.h) / [.cpp](audio_geometry.cpp) | acoustic geometry handles → plugin | game |
-| [audio_queue.h](audio_queue.h) | SPSC queue with batch commit | — |
+| [src/audio.h](audio.h) / [src/audio.cpp](audio.cpp) | public API, glue: objects, parameters, bank loading, stats | game (+ loader thread) |
+| [src/audio_bank.h](audio_bank.h) / [.cpp](audio_bank.cpp) | init.xml / meta.xml / sounds.xml parsing, data of a bank | game |
+| [src/audio_policy.h](audio_policy.h) / [.cpp](audio_policy.cpp) | event instances, voice management, commands to the mixer | game |
+| [src/audio_mixer.h](audio_mixer.h) / [.cpp](audio_mixer.cpp) | the graph: voices → instances → buses → master; miniaudio device | audio |
+| [src/audio_mix.h](audio_mix.h) | SIMD kernels: voice mix, resampling, panning, biquads, HRTF FIR, output, float → int16 | audio (IO) |
+| [src/audio_adpcm.h](audio_adpcm.h) | IMA ADPCM: WAV parsing, block decode / encode | audio, tools |
+| [src/audio_reverb.h](audio_reverb.h) | FDN reverb (8 lines), SIMD | audio |
+| [src/audio_stream.h](audio_stream.h) / [.cpp](audio_stream.cpp) | streaming: slots, rings, Vorbis decoders, IO thread | IO |
+| [src/audio_vorbis.h](audio_vorbis.h) / [.cpp](audio_vorbis.cpp) | Ogg Vorbis decoder in fixed memory: open, seek, mono int16 | IO, tools |
+| [src/audio_plugins.h](audio_plugins.h) / [.cpp](audio_plugins.cpp) | spatial plugin interface, built-in panning | audio |
+| [src/audio_hrtf.h](audio_hrtf.h) / [.cpp](audio_hrtf.cpp) | built-in binaural plugin (HRTF) | audio |
+| [src/audio_geometry.h](audio_geometry.h) / [.cpp](audio_geometry.cpp) | acoustic geometry handles → plugin | game |
+| [src/audio_queue.h](audio_queue.h) | SPSC queue with batch commit | — |
 | [tools/](tools/) | audio_bank_tool (sounds → ADPCM bank, .ogg checked + copied), hrtf_tool.py (HRIR set → hrtf.bin), stb_vorbis_patch.py (upstream stb_vorbis → external/stb/stb_vorbis.c) | — |
 
 Every file starts with a summary: role, contents, thread, what is not there, what it uses, tests.
