@@ -108,6 +108,8 @@ public:
     // bank unload: stop everything of the bank, then wait until no instance of it is left (the mixer no longer reads it)
     void                    stop_bank(const audio_bank_data* bank, uint32_t fade_frames);
     uint32_t                count_bank(const audio_bank_data* bank) const;
+    // live tuning: instances of `from` go on with `to` (same number of layers), else stop with the fade
+    void                    rebind(const audio_event_desc* from, const audio_event_desc* to, uint32_t fade_frames);
 
     void                    update();          // notifications -> pending -> score -> select -> commands -> commit
     const double*           phase_us() const { return m_phase_us; }      // the last update: [0] notes + pending, [1] score,

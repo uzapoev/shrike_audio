@@ -130,6 +130,9 @@ struct audio::impl {
         bool                unloading           = false;
         bool                remove              = false;
         bool                job_in_flight       = false;
+        std::string         folder;                         // register_bank's name: reload_banks reads it again
+        // event descriptions replaced by reload_banks: instances stopped by it may still read them while fading
+        std::vector<std::pair<std::vector<audio_event_desc>, std::vector<audio_curve>>> retired;
     };
 
     std::vector<std::unique_ptr<bank>> banks;
@@ -242,7 +245,7 @@ bool audio::init(const audio_desc_t& desc)
     // init bank: buses
     std::string root = desc.root_path ? desc.root_path : "";
     std::vector<uint8_t> xml;
-    std::string init_path = root + (desc.init_bank ? desc.init_bank : "init") + ".xml";
+    std::string init_path = root + (desc.init_bank ? desc.init_bank : "init") + ".json";
     if (!read_all(m.io, init_path, xml)) { m.error = "cannot read " + init_path; return false; }
     if (!audio_parse_init((const char*)xml.data(), xml.size(), m.buses, m.error)) return false;
     m.bus.assign(m.buses.buses.size(), impl::bus_state());
@@ -359,11 +362,11 @@ audio_bank_t audio::register_bank(const char* name)
 {
     if (!m_impl || !name) return {};
     impl& m = *m_impl;
-    // <root>/<name>/meta.xml - written by a person; <root>/<name>/sounds/ - what audio_bank_tool generates (sounds.xml + *.wav)
+    // <root>/<name>/meta.json - written by a person / the editor; <root>/<name>/sounds/ - what audio_bank_tool generates (sounds.json + *.wav)
     std::string folder = std::string(m.desc.root_path ? m.desc.root_path : "") + name;
     std::vector<uint8_t> bank_xml, sounds_xml;
-    if (!read_all(m.io, folder + "/meta.xml", bank_xml))            { m.error = "cannot read " + folder + "/meta.xml"; return {}; }
-    if (!read_all(m.io, folder + "/sounds/sounds.xml", sounds_xml)) { m.error = "cannot read " + folder + "/sounds/sounds.xml (run audio_bank_tool)"; return {}; }
+    if (!read_all(m.io, folder + "/meta.json", bank_xml))           { m.error = "cannot read " + folder + "/meta.json"; return {}; }
+    if (!read_all(m.io, folder + "/sounds/sounds.json", sounds_xml)) { m.error = "cannot read " + folder + "/sounds/sounds.json (run audio_bank_tool)"; return {}; }
 
     uint32_t idx = 0;
     while (idx < m.banks.size() && m.banks[idx]->used) ++idx;
@@ -379,10 +382,64 @@ audio_bank_t audio::register_bank(const char* name)
     for (const audio_event_desc& e : b.data.events) m.events[e.id] = &e;
     b.generation = gen;
     b.used = true;
+    b.folder = name;
+    b.retired.clear();
     b.state = impl::bank_registered;
     b.refcount = 0;
     b.unloading = b.remove = b.job_in_flight = false;
     return { idx, gen };
+}
+
+bool audio::reload_banks()
+{
+    if (!m_impl) return false;
+    impl& m = *m_impl;
+    bool all = true;
+    for (std::unique_ptr<impl::bank>& bp : m.banks) {
+        impl::bank& b = *bp;
+        if (!b.used || b.remove) continue;
+        std::string err;
+        const std::string folder = std::string(m.desc.root_path ? m.desc.root_path : "") + b.folder;
+        std::vector<uint8_t> meta, sounds;
+        if (!read_all(m.io, folder + "/meta.json", meta)) err = "cannot read " + folder + "/meta.json";
+        else if (!read_all(m.io, folder + "/sounds/sounds.json", sounds)) err = "cannot read " + folder + "/sounds/sounds.json";
+        audio_bank_data nd;
+        nd.sound_folder = b.data.sound_folder;
+        if (err.empty())
+            audio_parse_bank((const char*)meta.data(), meta.size(), (const char*)sounds.data(), sounds.size(),
+                             m.buses, m.desc.sample_rate, m.desc.stream_seconds, nd, err);
+        // the new events play the sounds the bank already has (loaded, streamed by path)
+        auto remap = [&](audio_choice& c) {
+            for (const audio_sound*& s : c.sounds) {
+                const audio_sound* old = s ? b.data.find_sound(s->id) : nullptr;
+                if (!old && err.empty()) err = "sound '" + (s ? s->name : std::string("?")) + "' is new (sounds are not reloaded: register the bank again)";
+                s = old;
+            }
+        };
+        for (audio_event_desc& e : nd.events) {
+            if (!err.empty()) break;
+            e.bank = &b.data;
+            for (audio_layer_desc& l : e.layers) { remap(l.pool); remap(l.fallback); for (audio_choice& c : l.cases) remap(c); }
+            auto it = m.events.find(e.id);
+            if (it != m.events.end() && it->second->bank != &b.data) err = "event '" + e.name + "' already exists in another bank";
+        }
+        if (!err.empty()) { m.error = "reload of bank '" + b.folder + "': " + err; all = false; continue; }
+
+        // swap: instances follow their event to the new description; the old ones stay until the bank goes
+        const uint32_t fade = m.frames(0.05f);
+        for (const audio_event_desc& e : b.data.events) {
+            const audio_event_desc* to = nullptr;
+            for (const audio_event_desc& n : nd.events) if (n.id == e.id) to = &n;
+            m.policy.rebind(&e, to, fade);
+            m.events.erase(e.id);
+        }
+        b.retired.emplace_back(std::move(b.data.events), std::move(b.data.curves));      // moved vectors keep their elements in place
+        b.data.events = std::move(nd.events);
+        b.data.curves = std::move(nd.curves);
+        b.data.name = nd.name;
+        for (const audio_event_desc& e : b.data.events) m.events[e.id] = &e;
+    }
+    return all;
 }
 
 void audio::unregister_bank(audio_bank_t h)
@@ -486,6 +543,7 @@ void audio::update(float dt)
         if (b.remove) {
             for (const audio_event_desc& e : b.data.events) m.events.erase(e.id);
             b.data = audio_bank_data();
+            b.retired.clear();
             b.used = false;
             b.remove = false;
         }
@@ -646,7 +704,7 @@ float audio::get_bus_duck(audio_bus_id id) const
 void audio::set_binaural(bool on)
 {
     if (!m_impl) return;
-    if (on && !m_impl->binaural_ok) { m_impl->error = "set_binaural: no HRTF data (hrtf.bin next to init.xml) - panning only"; return; }
+    if (on && !m_impl->binaural_ok) { m_impl->error = "set_binaural: no HRTF data (hrtf.bin next to init.json) - panning only"; return; }
     m_impl->policy.set_binaural(on);
 }
 

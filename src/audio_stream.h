@@ -13,7 +13,7 @@
 // Thread:    game thread: open / close / state. IO thread: opens files, reads / decodes blocks. Audio thread (mixer):
 //            consumes.
 // Not here:  ADPCM decoding (the mixer, audio_adpcm.h), Vorbis decoding itself (audio_vorbis.h), the decision to
-//            stream a sound (bank: sounds/sounds.xml / meta.xml).
+//            stream a sound (bank: sounds/sounds.json / meta.json).
 // Rules:     one SPSC ring per stream (`produced` - IO thread, `consumed` - mixer); blocks strictly in play order (on loop
 //            the IO thread wraps to block 0 itself). Underrun: the mixer outputs silence and does not move.
 //            The format is found by the file itself ("OggS" -> Vorbis, else WAV). A Vorbis stream needs a free decoder

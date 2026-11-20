@@ -86,7 +86,7 @@ struct audio_desc_t {
                                                     // loudness (rapid fire: old tails would outlive every new shot)
     const char*     root_path           = "audio/";
     const char*     init_bank           = "init";   // buses, global mixer settings
-    const char*     hrtf_file           = "hrtf.bin";   // next to init.xml: the built-in binaural plugin (tools/hrtf_tool.py);
+    const char*     hrtf_file           = "hrtf.bin";   // next to init.json: the built-in binaural plugin (tools/hrtf_tool.py);
                                                     // missing -> panning only; nullptr -> not looked for
     uint32_t        max_binaural        = 16;       // binaural instances at once (the most audible spatial ones), the rest panned
     const audio_spatial_plugin* plugin  = nullptr;  // own spatial plugin (audio_plugins.h) instead of the built-in ones;
@@ -245,13 +245,20 @@ public:
     void                        load_bank(audio_bank_t bank);           // asynchronous, refcount++
     void                        unload_bank(audio_bank_t bank);         // refcount--, unloaded after its voices are silent
     audio_bank_state            get_bank_state(audio_bank_t bank) const;
+    // live tuning (editor, hot reload): reads meta.json of every registered bank again and swaps the event
+    // descriptions; playing instances take the new parameters at once (volumes, curves, filters, sends,
+    // attenuation, priority), what is decided at post (chance, sound pick, random pitch, delay, switch cases,
+    // bus) from their next post. An instance whose event is gone or has another number of layers is stopped
+    // (short fade). Sounds are not reloaded: a meta.json using a sound the bank did not have is refused and that
+    // bank keeps its old version (register it again for that). false: some bank refused (last_error).
+    bool                        reload_banks();
 
     // mixer
     void                        set_bus_volume(audio_bus_id bus, float volume, float fade = 0.0f);
     void                        set_bus_mute(audio_bus_id bus, bool mute);
     void                        set_bus_pause(audio_bus_id bus, bool pause);
     void                        set_bus_reverb(audio_bus_id bus, uint32_t preset);    // audio_id(<reverb name>); the old tail rings out
-    // ducking is declared in init.xml (<bus> <duck bus="music" gain="0.3" attack="0.2" release="0.8"/> </bus>);
+    // ducking is declared in init.json (bus "ducks": [ { "bus": "music", "gain": 0.3, "attack": 0.2, "release": 0.8 } ]);
     // the bus's current ducking gain (1 = none), multiplied with its volume
     float                       get_bus_duck(audio_bus_id bus) const;
 

@@ -255,6 +255,16 @@ void audio_policy::stop_bank(const audio_bank_data* bank, uint32_t fade)
     }
 }
 
+void audio_policy::rebind(const audio_event_desc* from, const audio_event_desc* to, uint32_t fade)
+{
+    for (uint32_t i = 0; i < m_records.size(); ++i) {
+        record& r = m_records[i];
+        if (r.state == audio_instance_none || r.desc != from) continue;
+        if (to && to->layers.size() == from->layers.size()) r.desc = to;    // layer states stay valid (same sounds)
+        else stop({ i, r.generation }, fade);                               // goes on with the old one while fading
+    }
+}
+
 uint32_t audio_policy::count_bank(const audio_bank_data* bank) const
 {
     uint32_t n = 0;
@@ -332,7 +342,7 @@ void audio_policy::send_filter(record& r, bool force)
 {
     const audio_event_desc& d = *r.desc;
     const bool own = d.lowpass_hz || d.lowpass_curve || d.highpass_hz || d.highpass_curve;
-    // air absorption (init.xml): every spatial instance by distance; with the event's own low-pass the lower cutoff wins
+    // air absorption (init.json): every spatial instance by distance; with the event's own low-pass the lower cutoff wins
     const float air = m_buses && d.spatial != audio_spatial_2d ? m_buses->air_cutoff(r.distance, d.air) : 0.0f;
     if (!own && air == 0.0f && !(r.sent_lowpass > 0.0f)) return;     // never filtered and nothing now
     float lp = d.lowpass_curve ? d.lowpass_curve->eval(param(r, d.lowpass_curve->parameter)) : d.lowpass_hz;

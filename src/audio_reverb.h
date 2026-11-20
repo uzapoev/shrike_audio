@@ -13,7 +13,7 @@
 //   - process_scalar / process_simd   one period; the SIMD version runs the 8 lines in 2 x 4 lanes (blocks of 4 samples
 //                           transposed: every line is at least 4 samples long, so a block reads before it writes)
 // Thread:    audio thread. Memory is given by the mixer (no allocation here).
-// Not here:  sends and the aux bus (audio_mixer), presets from init.xml (audio_bank), early reflections, modulation.
+// Not here:  sends and the aux bus (audio_mixer), presets from init.json (audio_bank), early reflections, modulation.
 // Rules:     both versions use the same operation order: bit-exact. Line lengths change only while the instance is
 //            silent (a preset change takes a fresh instance; the old one rings out).
 // Tests:     tests/audio_mix_test.cpp (bit-exact, decay time, stability, speed).

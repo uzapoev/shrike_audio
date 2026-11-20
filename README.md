@@ -17,7 +17,7 @@ What it does:
 - spatial: equal-power panning or binaural HRTF (headphones mode); replaceable by an own plugin
 - profiling: time per stage of every thread, memory, pool usage, live streams and instances
 
-Platforms: Windows / macOS / Linux / iOS / Android (main), web / Nintendo (experimental). SIMD: SSE2, ARM NEON through
+Platforms: Windows / macOS / Linux / iOS / Android (main), web(experimental). SIMD: SSE2, ARM NEON through
 sse2neon; every SIMD kernel has a scalar reference.
 
 ---
@@ -110,8 +110,8 @@ assets/audio/
            ◄─────────────── notifications (voice ended)
 ```
 
-- **Game thread:** only decisions (≈12 µs per frame in saltline).
-- **Audio thread:** all signal processing (≈50 µs per 5.3 ms period in saltline, ~1 %).
+- **Game thread:** only decisions (≈12 µs per frame in sample_project).
+- **Audio thread:** all signal processing (≈50 µs per 5.3 ms period in sample_project, ~1 %).
 - The threads are connected by lock-free single-producer / single-consumer queues and rings. No thread waits for
   another.
 - Exception: with `audio_desc_t::start_device = false` (tests, tools) there is no device. `render()` then runs on the
@@ -391,7 +391,7 @@ ctest --test-dir build_audio -C Release
 - The tests are in [tests/](../../tests/): kernels (`audio_mix_test`), mixer, streams (real-time, ~2 min), policy and
   bank, the whole API, HRTF, the Vorbis decoder (`audio_vorbis_test`). `audio_hrtf_bench` and `audio_proto_test` are
   experiments, not part of ctest. Vorbis test files are in `tests/data/audio` (CC0 / public domain, see its README).
-- An example game using the module: [games/saltline](../../games/saltline/) (`src/sl_audio.*`, `assets/audio/`).
+- An example game using the module: [games/sample_project](../../games/sample_project/) (`src/sl_audio.*`, `assets/audio/`).
 
 ---
 

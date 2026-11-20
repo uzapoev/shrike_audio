@@ -3,7 +3,7 @@
 
 // audio_hrtf.h - built-in binaural spatial plugin (HRTF)
 //
-// Role:      the default spatial plugin when hrtf.bin is next to init.xml: the instances the core marks binaural
+// Role:      the default spatial plugin when hrtf.bin is next to init.json: the instances the core marks binaural
 //            (audio_spatial_input::binaural - the N most audible spatial ones, headphones mode on) go through a pair of
 //            head-related impulse responses; the rest are panned (equal power, as the built-in pan plugin).
 // Contents:

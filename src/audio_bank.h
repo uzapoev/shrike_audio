@@ -3,18 +3,20 @@
 
 // audio_bank.h - bank data and its loader
 //
-// Role:      what a bank describes: sounds, curves, layer / event templates, buses; parsed from XML.
+// Role:      what a bank describes: sounds, curves, layer / event templates, buses; built from the JSON files
+//            (audio_format.h structs) with all the checks.
 // Contents:
-//   - audio_sound            name, file, format, length, envelope (sounds.xml), resident data after load (attach)
+//   - audio_sound            name, file, format, length, envelope (sounds.json), resident data after load (attach)
 //   - audio_curve            piecewise linear, up to 16 points, parameter id (declared or built-in distance / angle)
 //   - audio_layer_desc       sound pool / switch cases / default, chance, delay, volume, pitch, loop, curves
 //   - audio_event_desc       layers, parameters, switches, spatial mode, priorities, attenuation, filters, virtual,
 //                            limits, bus
-//   - audio_bank_data        sounds + curves + events of one bank; audio_buses from init.xml (buses, reverb presets)
-//   - audio_parse_init / audio_parse_bank / audio_sound_attach   (audio_bank.cpp, pugixml)
+//   - audio_bank_data        sounds + curves + events of one bank; audio_buses from init.json (buses, reverb presets)
+//   - audio_build_init / audio_build_bank (from audio_format.h structs; the editor validates with them),
+//     audio_parse_init / audio_parse_bank (JSON text -> structs -> build), audio_sound_attach   (audio_bank.cpp)
 // Thread:    game thread. A loaded bank does not move in memory: pointers into it stay valid until unload.
 // Not here:  reading files (the caller passes buffers), instances (audio_policy), the bank tool (encoding, envelopes).
-// Format:    requrements.txt section 9 "Формат банка".
+// Format:    audio_format.h (init.json, <bank>/meta.json, <bank>/sounds/sounds.json).
 // Tests:     tests/audio_policy_test.cpp (events written in XML, parse errors).
 
 #include <stdint.h>
@@ -135,7 +137,7 @@ struct audio_duck_desc { uint32_t source, target; float gain, attack, release; }
 // Ducking state of one bus (as a target): its gain now, and the depth / release of the last source that ducked it.
 struct audio_duck_state { float gain = 1.0f, depth_db = 0.0f, release = 0.0f; };
 
-struct audio_buses {                          // from init.xml; index 0 is master, parents have smaller indices
+struct audio_buses {                          // from init.json; index 0 is master, parents have smaller indices
     std::vector<audio_bus_desc> buses;
     std::vector<std::pair<uint32_t, audio_reverb_preset>> reverbs;     // <reverb name=...> presets
     // <air_absorption cutoff_100m min_cutoff>: low-pass of every spatial instance by distance,
@@ -149,6 +151,12 @@ struct audio_buses {                          // from init.xml; index 0 is maste
 };
 
 // Parsers (game thread). Texts are not null-terminated; errors go to `error` (empty on success).
+struct audio_fmt_init;
+struct audio_fmt_bank;
+struct audio_fmt_sounds;
+bool audio_build_init(const audio_fmt_init& in, audio_buses& out, std::string& error);
+bool audio_build_bank(const audio_fmt_bank& bank, const audio_fmt_sounds& sounds, const audio_buses& buses, uint32_t sample_rate,
+                      float stream_seconds, audio_bank_data& out, std::string& error);
 bool audio_parse_init(const char* xml, size_t size, audio_buses& out, std::string& error);
 bool audio_parse_bank(const char* bank_xml, size_t bank_size, const char* sounds_xml, size_t sounds_size,
                       const audio_buses& buses, uint32_t sample_rate, float stream_seconds,
@@ -158,7 +166,7 @@ bool audio_parse_bank(const char* bank_xml, size_t bank_size, const char* sounds
 // Returns true if any gain changed.
 bool audio_duck_update(const audio_buses& b, const uint8_t* active, float dt, audio_duck_state* state);
 
-// Resident sound data loaded: takes the WAV bytes, checks them against sounds.xml.
+// Resident sound data loaded: takes the WAV bytes, checks them against sounds.json.
 bool audio_sound_attach(audio_sound& s, std::vector<uint8_t>&& wav, std::string& error);
 
 #endif
